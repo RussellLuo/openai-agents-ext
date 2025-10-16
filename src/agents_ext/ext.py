@@ -17,17 +17,13 @@ from agents.result import RunResultBase
 from agents.run import Runner, RunConfig, QueueCompleteSentinel
 from agents.stream_events import (
     AgentUpdatedStreamEvent,
-    RunItemStreamEvent,
     RawResponsesStreamEvent,
     RunItemStreamEvent,
     StreamEvent,
 )
 from agents.tool_context import ToolContext
-from openai.types.responses.response_reasoning_item import (
-    ResponseReasoningItem,
-    Summary,
-)
-from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from openai.types.responses import ResponseReasoningItem, ResponseTextDeltaEvent
+from openai.types.responses.response_reasoning_item import Summary
 
 
 class Agent(RawAgent[TContext]):
