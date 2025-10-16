@@ -2,13 +2,19 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Callable
 
-from agents import Agent as RawAgent, function_tool, RunContextWrapper, ReasoningItem
+from agents import (
+    Agent as RawAgent,
+    function_tool,
+    RunContextWrapper,
+    ReasoningItem,
+    RunResultStreaming,
+)
 from agents.agent import _transforms, MaybeAwaitable, AgentBase, TContext, Tool
 from agents.items import TResponseInputItem
 from agents.lifecycle import RunHooks
-from agents.run import Runner, RunConfig, QueueCompleteSentinel, RunResultStreaming
 from agents.memory.session import Session
-from agents.tool_context import ToolContext
+from agents.result import RunResultBase
+from agents.run import Runner, RunConfig, QueueCompleteSentinel
 from agents.stream_events import (
     AgentUpdatedStreamEvent,
     RunItemStreamEvent,
@@ -16,7 +22,7 @@ from agents.stream_events import (
     RunItemStreamEvent,
     StreamEvent,
 )
-from agents.result import RunResultBase
+from agents.tool_context import ToolContext
 from openai.types.responses.response_reasoning_item import (
     ResponseReasoningItem,
     Summary,
@@ -130,9 +136,14 @@ class StreamToolContext:
 
     @property
     def queue(self) -> asyncio.Queue | None:
+        if not self.tree:
+            return None
+
+        # The root tool context contains the queue.
         ctx = self.tree[0].context
         if isinstance(ctx, EventQueue):
             return ctx.queue
+
         return None
 
     def put_reasoning_item(self, text: str) -> None:
@@ -150,7 +161,6 @@ class StreamToolContext:
             name="reasoning_item_created",
             item=item,
         )
-        # The root tool context contains the queue.
         if self.queue:
             self.queue.put_nowait(event)
 
@@ -255,7 +265,9 @@ async def run_demo_loop(
                         print(event.data.delta, end="", flush=True)
                 elif isinstance(event, RunItemStreamEvent):
                     if event.item.type == "tool_call_item":
-                        print(f"\n['{event.item.raw_item.name}' tool called]", flush=True)
+                        print(
+                            f"\n['{event.item.raw_item.name}' tool called]", flush=True
+                        )
                     elif event.item.type == "tool_call_output_item":
                         print(f"\n[tool output: {event.item.output}]", flush=True)
                     elif event.item.type == "reasoning_item":
