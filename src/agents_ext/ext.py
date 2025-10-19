@@ -167,20 +167,30 @@ class StreamResult:
 
         self._queue: asyncio.Queue = queue
         self._task: asyncio.Task = asyncio.create_task(self._consume_result())
+        self._cancel_event: asyncio.Event = asyncio.Event()
 
-    async def _consume_result(self) -> None:
-        async for event in self.raw_result.stream_events():
-            if isinstance(event, RawResponsesStreamEvent):
-                self._queue.put_nowait(event)
-            elif isinstance(event, RunItemStreamEvent):
-                self._queue.put_nowait(event)
+    def cancel(self) -> None:
+        """Cancel the streaming run, stopping all background tasks."""
+        # Cancel the underlying streaming run.
+        self.raw_result.cancel()
 
-        # Signal that the queue is complete and can be closed.
-        self._queue.put_nowait(QueueCompleteSentinel())
+        # Cancel the consuming task and the stream_events() loop.
+        self._task.cancel()
+        self._cancel_event.set()
+
+        # Clear the queue to prevent processing stale events.
+        while not self._queue.empty():
+            self._queue.get_nowait()
 
     async def stream_events(self) -> AsyncIterator[StreamEvent]:
-        """Stream deltas for the internal event queue."""
+        """Stream deltas for new items as they are generated. We're using the types from the
+        OpenAI Responses API, so these are semantic events: each event has a `type` field that
+        describes the type of the event, along with the data for that event.
+        """
         while True:
+            if self._cancel_event.is_set():
+                break
+
             try:
                 item = await self._queue.get()
             except asyncio.CancelledError:
@@ -192,6 +202,16 @@ class StreamResult:
 
             yield item
             self._queue.task_done()
+
+    async def _consume_result(self) -> None:
+        async for event in self.raw_result.stream_events():
+            if isinstance(event, RawResponsesStreamEvent):
+                self._queue.put_nowait(event)
+            elif isinstance(event, RunItemStreamEvent):
+                self._queue.put_nowait(event)
+
+        # Signal that the queue is complete and can be closed.
+        self._queue.put_nowait(QueueCompleteSentinel())
 
 
 def run_streamed(
