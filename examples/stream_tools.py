@@ -15,10 +15,10 @@ async def query_weather(ctx: ToolContext[EventQueue], location: str):
     sctx = StreamToolContext(ctx)
 
     try:
-        sctx.put_reasoning_item("Starting...")
+        sctx.reason("Starting...")
         return f"Weather in {location} is sunny."
     finally:
-        sctx.put_reasoning_item("Completed!")
+        sctx.reason("Completed!")
 
 
 agent = Agent(

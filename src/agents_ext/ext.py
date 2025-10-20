@@ -161,7 +161,8 @@ class StreamToolContext:
             self._full_tool_name_calculated = True
         return self._full_tool_name
 
-    def put_reasoning_item(self, text: str) -> None:
+    def reason(self, text: str) -> None:
+        """Emit a reasoning item to the stream."""
         item = ReasoningItem(
             type="reasoning_item",
             agent="assistant",
