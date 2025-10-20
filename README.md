@@ -143,7 +143,7 @@ async def main():
     # I'll check the weather in Beijing for you.
     # ['weather_agent' tool called]
     # 
-    # ['query_weather' tool called]
+    # ['weather_agent/query_weather' tool called]
     # 
     # ['weather_agent/query_weather' reasoning: Starting...]
     # 

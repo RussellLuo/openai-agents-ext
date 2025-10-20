@@ -90,15 +90,22 @@ class Agent(RawAgent[TContext]):
 
             tool_output = ""
 
-            queue = StreamToolContext(context).queue
+            sctx = StreamToolContext(context)
+            parent_tool_name = sctx.full_tool_name
 
             async for event in result.stream_events():
                 if isinstance(event, RawResponsesStreamEvent):
                     if isinstance(event.data, ResponseTextDeltaEvent):
                         tool_output += event.data.delta
                 elif isinstance(event, RunItemStreamEvent):
-                    if queue:
-                        queue.put_nowait(event)
+                    # Use the full tool name that includes its parent agent (as tool) in the stream events.
+                    # This is pretty useful for debugging and understanding the tool call hierarchy.
+                    if parent_tool_name and event.item.type == "tool_call_item":
+                        event.item.raw_item.name = (
+                            f"{parent_tool_name}/{event.item.raw_item.name}"
+                        )
+                    if sctx.queue:
+                        sctx.queue.put_nowait(event)
 
             return tool_output
 
@@ -114,8 +121,10 @@ class EventQueue:
 
 class StreamToolContext:
     def __init__(self, ctx: ToolContext[EventQueue]) -> None:
-        self.ctx = ctx
-        self._tree = []
+        self.ctx: ToolContext[EventQueue] = ctx
+
+        self._tree: list[ToolContext] = []
+        self._full_tool_name: str = ""
 
     @property
     def tree(self) -> list[dict]:
@@ -142,13 +151,23 @@ class StreamToolContext:
 
         return None
 
+    @property
+    def full_tool_name(self) -> str:
+        # Ensure the tree is calculated.
+        _ = self.queue
+
+        if not hasattr(self, "_full_tool_name_calculated"):
+            self._full_tool_name = "/".join(ctx.tool_name for ctx in self._tree)
+            self._full_tool_name_calculated = True
+        return self._full_tool_name
+
     def put_reasoning_item(self, text: str) -> None:
         item = ReasoningItem(
             type="reasoning_item",
             agent="assistant",
             raw_item=ResponseReasoningItem(
                 type="reasoning",
-                id="/".join(ctx.tool_name for ctx in self.tree),
+                id=self.full_tool_name,
                 summary=[Summary(type="summary_text", text=text)],
             ),
         )
