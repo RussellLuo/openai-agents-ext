@@ -211,17 +211,13 @@ class StreamResult:
             if self._cancel_event.is_set():
                 break
 
-            try:
-                item = await self._queue.get()
-            except asyncio.CancelledError:
-                break
+            item = await self._queue.get()
+            self._queue.task_done()
 
             if isinstance(item, QueueCompleteSentinel):
-                self._queue.task_done()
                 break
 
             yield item
-            self._queue.task_done()
 
     async def _consume_result(self) -> None:
         async for event in self.raw_result.stream_events():
