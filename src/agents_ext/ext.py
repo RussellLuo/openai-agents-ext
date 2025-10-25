@@ -44,13 +44,7 @@ class Agent(RawAgent[TContext]):
     ) -> Tool:
         """Transform this agent into a streaming tool, callable by other agents.
 
-        This is different from handoffs in two ways:
-        1. In handoffs, the new agent receives the conversation history. In this tool, the new agent
-           receives generated input.
-        2. In handoffs, the new agent takes over the conversation. In this tool, the new agent is
-           called as a tool, and the conversation is continued by the original agent.
-
-        This is different from the `as_tool` method in that it streams the events from the agent
+        This is different from the `Agent.as_tool` method in that it streams the events from the agent
         back to the caller. This is useful for long-running tasks where you want to provide feedback
         to the user as the task progresses.
 
@@ -161,15 +155,17 @@ class StreamToolContext:
             self._full_tool_name_calculated = True
         return self._full_tool_name
 
-    def reason(self, text: str) -> None:
-        """Emit a reasoning item to the stream."""
+    def report_progress(self, message: str) -> None:
+        """Report a progress update by sending a human readable message to the stream."""
+        # To avoid intrusive modifications to the OpenAI Agents SDK,
+        # here we leverage the existing `ReasoningItem` to send progress updates.
         item = ReasoningItem(
             type="reasoning_item",
             agent="assistant",
             raw_item=ResponseReasoningItem(
                 type="reasoning",
                 id=self.full_tool_name,
-                summary=[Summary(type="summary_text", text=text)],
+                summary=[Summary(type="summary_text", text=message)],
             ),
         )
         event = RunItemStreamEvent(

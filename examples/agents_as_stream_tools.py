@@ -1,9 +1,6 @@
 import asyncio
 
-from agents import (
-    RawResponsesStreamEvent,
-    RunItemStreamEvent,
-)
+from agents import RawResponsesStreamEvent, RunItemStreamEvent
 from agents_ext import Agent, EventQueue, run_streamed
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
 

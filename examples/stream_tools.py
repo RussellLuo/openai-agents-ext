@@ -1,10 +1,6 @@
 import asyncio
 
-from agents import (
-    function_tool,
-    RawResponsesStreamEvent,
-    RunItemStreamEvent,
-)
+from agents import function_tool, RawResponsesStreamEvent, RunItemStreamEvent
 from agents.tool_context import ToolContext
 from agents_ext import Agent, EventQueue, StreamToolContext, run_streamed
 from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
@@ -15,10 +11,10 @@ async def query_weather(ctx: ToolContext[EventQueue], location: str):
     sctx = StreamToolContext(ctx)
 
     try:
-        sctx.reason("Starting...")
+        sctx.report_progress("Starting...")
         return f"Weather in {location} is sunny."
     finally:
-        sctx.reason("Completed!")
+        sctx.report_progress("Completed!")
 
 
 agent = Agent(
